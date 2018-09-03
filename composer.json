@@ -1,20 +1,37 @@
 {
-    "name": "rpfk/hungarian",
-    "version": "dev-master",
+    "name": "arthurkushman/hungarian",
     "description": "An implementation of the Hungarian algorithm in PHP.",
     "type": "library",
     "license": "MIT",
+    "keywords": [
+        "hungarian algorithm",
+        "algorithms",
+        "php"
+    ],
     "authors": [
         {
-            "name": "Robert Koster",
-            "email": "robert@rpfk.nl"
+            "name": "Arthur Kushman",
+            "email": "arthurkushman@gmail.com"
         }
     ],
     "autoload": {
         "psr-4": {
-            "RPFK\\Hungarian\\": "src/"
+            "Hungarian\\": "src/",
+            "HungarianTest\\": "tests/"
         }
     },
-    "minimum-stability": "stable",
-    "require": {}
+    "autoload-dev": {
+        "psr-4": {
+            "Hungarian\\": "src",
+            "HungarianTest\\": "tests"
+        }
+    },
+    "homepage": "https://github.com/arthurkushman/Hungarian",
+    "require": {
+        "php": ">=7.0",
+        "phpunit/phpunit": "^7.3"
+    },
+    "require-dev": {
+        "php": ">=7.0"
+    }
 }

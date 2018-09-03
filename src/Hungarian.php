@@ -1,8 +1,10 @@
 <?php
-namespace RPFK\Hungarian;
+
+namespace Hungarian;
 
 class Hungarian
 {
+
     /*
      * The assignment cost matrix to be minimised.
      */
@@ -28,9 +30,15 @@ class Hungarian
      */
     protected $covered = [
         'column' => [],
-        'row' => []
+        'row'    => [],
     ];
 
+    /**
+     * Hungarian constructor.
+     *
+     * @param array $matrix
+     * @throws \Exception
+     */
     public function __construct(array $matrix)
     {
         $this->isValid($matrix);
@@ -38,16 +46,24 @@ class Hungarian
         $this->reduced = $matrix;
     }
 
+    /**
+     * @param array $matrix
+     * @return bool
+     * @throws \Exception
+     */
     public function isValid(array $matrix)
     {
-        if (count($matrix) == false) {
-            throw new \Exception('Number of rows in matrix returns false.');
+        if (count($matrix) === 0) {
+            throw new \Exception('Matrix is empty.');
         }
+
         foreach ($matrix as $key => $row) {
             if (count($row) !== count(array_intersect_key($row, ...$matrix))) {
-                throw new \Exception(printf('Column keys of row %u do not correspond to the column keys found in the rest of the matrix.', $key));
+                throw new \Exception(printf('Column keys of row %u do not correspond to the column keys found in the rest of the matrix.',
+                    $key));
             }
         }
+
         return true;
     }
 
@@ -66,7 +82,7 @@ class Hungarian
             }
         }
 
-        $transposed = array_map(null, ...$this->reduced);
+        $transposed = array_map(NULL, ...$this->reduced);
 
         /*
          * Reduces all columns of the matrix
@@ -82,12 +98,14 @@ class Hungarian
     public function addPrime($row, $column)
     {
         $this->primed[$row] = $column;
+
         return $this;
     }
 
     public function addStar($row, $column)
     {
         $this->starred[$row] = $column;
+
         return $this;
     }
 
@@ -113,15 +131,16 @@ class Hungarian
 
     public function getPrimeFromRow($row)
     {
-        if (!key_exists($row, $this->primed)) {
+        if (!array_key_exists($row, $this->primed)) {
             return false;
         }
+
         return $this->primed[$row];
     }
 
     public function hasStarInColumn($column)
     {
-        return array_search($column, $this->starred, true) !== false;
+        return in_array($column, $this->starred, true);
     }
 
     public function getStarFromColumn($column)
@@ -136,9 +155,10 @@ class Hungarian
 
     public function getStarFromRow($row)
     {
-        if (!key_exists($row, $this->starred)) {
+        if (!array_key_exists($row, $this->starred)) {
             return false;
         }
+
         return $this->starred[$row];
     }
 
@@ -148,6 +168,7 @@ class Hungarian
         foreach ($this->reduced as $row => $cells) {
             $zeros[$row] = array_keys($cells, 0, true);
         }
+
         return $zeros;
     }
 
@@ -161,6 +182,7 @@ class Hungarian
                 }
             }
         }
+
         return $covered_zero_matrix;
     }
 
@@ -169,17 +191,23 @@ class Hungarian
         $non_covered_zero_matrix = [];
         foreach ($zero_matrix as $row => $cells) {
             foreach ($cells as $column) {
-                if (!in_array($row, $this->covered['row'], true) && !in_array($column, $this->covered['column'], true)) {
+                if (!in_array($row, $this->covered['row'], true) && !in_array($column, $this->covered['column'],
+                        true)) {
                     $non_covered_zero_matrix[$row][] = $column;
                 }
             }
         }
+
         return $non_covered_zero_matrix;
     }
 
-    public function solve($print = false)
+    /**
+     * @param bool $print
+     * @return array
+     */
+    public function solveMin($print = false)
     {
-        $print ? $this->printMatrix($this->matrix, 'Original cost matrix:') : null;
+        $print ? $this->printMatrix($this->matrix, 'Original cost matrix:') : NULL;
         /*
          * Preliminary Steps:
          *  -  Generate reduced matrix
@@ -188,7 +216,7 @@ class Hungarian
          *     - Cover column of starred zero
          */
         $this->reduce();
-        $print ? $this->printMatrix($this->reduced, 'Reduced cost matrix:') : null;
+        $print ? $this->printMatrix($this->reduced, 'Reduced cost matrix:') : NULL;
         foreach ($this->reduced as $row => $cells) {
             $columns = array_diff(array_keys($cells, 0, true), $this->covered['column']);
             if (isset($columns[0])) {
@@ -196,7 +224,8 @@ class Hungarian
                 $this->covered['column'][] = $columns[0];
             }
         }
-        $print ? $this->printMatrix($this->reduced, 'Final preliminary reduced cost matrix:') : null;
+
+        $print ? $this->printMatrix($this->reduced, 'Final preliminary reduced cost matrix:') : NULL;
 
         /*
          * Generate zero matrix
@@ -292,7 +321,7 @@ class Hungarian
                 }
             }
 
-            $print ? $this->printMatrix($this->reduced, 'Reduced cost matrix of non-covered zero iteration:') : null;
+            $print ? $this->printMatrix($this->reduced, 'Reduced cost matrix of non-covered zero iteration:') : NULL;
 
             $zero_matrix = $this->getZeroMatrix();
             $non_covered_zero_matrix = $this->getNonCoveredZeroMatrix($zero_matrix);
@@ -305,75 +334,88 @@ class Hungarian
          *
          */
         if (count($this->covered['column']) + count($this->covered['row']) === count($this->reduced)) {
+            ksort($this->starred);
+
             return $this->starred;
-        } else {
-            $non_covered_reduced_matrix = [];
-            $once_covered_reduced_matrix = [];
-            $twice_covered_reduced_matrix = [];
-            foreach ($this->reduced as $row => $cells) {
-                foreach ($cells as $column => $cell) {
-                    if (!in_array($row, $this->covered['row'], true) && !in_array($column, $this->covered['column'], true)) {
-                        $non_covered_reduced_matrix[$row][$column] = $cell;
-                    } elseif (in_array($row, $this->covered['row'], true) && in_array($column, $this->covered['column'], true)) {
-                        $twice_covered_reduced_matrix[$row][$column] = $cell;
-                    } else {
-                        $once_covered_reduced_matrix[$row][$column] = $cell;
-                    }
-                }
-            }
-
-            $min = INF;
-            foreach ($non_covered_reduced_matrix as $row => $cells) {
-                foreach ($cells as $column => $cell) {
-                    $min = ($cell < $min) ? $cell : $min;
-                }
-            }
-            foreach ($non_covered_reduced_matrix as $row => $cells) {
-                foreach ($cells as $column => $cell) {
-                    $this->reduced[$row][$column] -= $min;
-                }
-            }
-            foreach ($twice_covered_reduced_matrix as $row => $cells) {
-                foreach ($cells as $column => $cell) {
-                    $this->reduced[$row][$column] += $min;
-                }
-            }
-
-            goto start;
         }
 
+        $non_covered_reduced_matrix = [];
+        $once_covered_reduced_matrix = [];
+        $twice_covered_reduced_matrix = [];
+        foreach ($this->reduced as $row => $cells) {
+            foreach ($cells as $column => $cell) {
+                if (!in_array($row, $this->covered['row'], true) && !in_array($column, $this->covered['column'],
+                        true)) {
+                    $non_covered_reduced_matrix[$row][$column] = $cell;
+                } elseif (in_array($row, $this->covered['row'], true) && in_array($column, $this->covered['column'],
+                        true)) {
+                    $twice_covered_reduced_matrix[$row][$column] = $cell;
+                } else {
+                    $once_covered_reduced_matrix[$row][$column] = $cell;
+                }
+            }
+        }
+
+        $min = INF;
+        foreach ($non_covered_reduced_matrix as $row => $cells) {
+            foreach ($cells as $column => $cell) {
+                $min = ($cell < $min) ? $cell : $min;
+            }
+        }
+
+        foreach ($non_covered_reduced_matrix as $row => $cells) {
+            foreach ($cells as $column => $cell) {
+                $this->reduced[$row][$column] -= $min;
+            }
+        }
+
+        foreach ($twice_covered_reduced_matrix as $row => $cells) {
+            foreach ($cells as $column => $cell) {
+                $this->reduced[$row][$column] += $min;
+            }
+        }
+
+        goto start;
     }
 
-    public function printMatrix($matrix, $title = null)
+    public function printMatrix($matrix, $title = NULL)
     {
-        if (!is_null($title)) {
+        if ($title !== NULL) {
             printf("\n" . $title);
         }
-        printf("\n  ");
+
+        echo "\n  ";
         foreach ($matrix[key($matrix)] as $column => $cell) {
-            if (array_search($column, $this->covered['column'], true) !== false) {
-                printf("C \t  ");
+            if (in_array($column, $this->covered['column'], true)) {
+                echo "C \t  ";
             } else {
-                printf("  \t  ");
+                echo "  \t  ";
             }
         }
-        printf("\n\n");
+
+        echo PHP_EOL . PHP_EOL;
         foreach ($matrix as $row => $cells) {
-            printf("| ");
+
+            echo '| ';
             foreach ($cells as $column => $cell) {
-                printf("%d", $cell);
+                printf('%d', $cell);
+
                 if (isset($this->starred[$row]) && $this->starred[$row] === $column) {
-                    printf("*");
+                    echo '*';
                 }
+
                 if (isset($this->primed[$row]) && $this->primed[$row] === $column) {
-                    printf("'");
+                    echo "'";
                 }
-                printf(" \t| ");
+
+                echo " \t| ";
             }
-            if (array_search($row, $this->covered['row'], true) !== false) {
-                printf("C");
+
+            if (in_array($row, $this->covered['row'], true)) {
+                echo 'C';
             }
-            printf("\n");
+
+            echo PHP_EOL;
         }
     }
 }
